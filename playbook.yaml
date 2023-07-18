@@ -1,0 +1,32 @@
+- name: lab2
+  hosts: nginx1
+  become: true
+  tasks:
+  - name: install nginx
+    apt:
+      name: nginx
+      update_cache: true
+  - name: change port
+    lineinfile:
+      path: /etc/nginx/sites-available/default
+      regexp: 'listen 80 default_server;'
+      line: 'listen 8090 default_server;'
+  - name: change default web page
+    copy:
+      src: index.html
+      dest: /var/www/html/
+      owner: ubuntu
+      group: ubuntu
+      mode: '0644'        
+  - name: restart nginx
+    systemd:
+      state: restarted
+      daemon_reload: true
+      name: nginx
+  - name: install git nodejs npm
+    apt:
+      name: [nodejs,npm,git]
+      update_cache: true
+  - name: Run a script
+    ansible.builtin.script: 
+     cmd: script.sh     
