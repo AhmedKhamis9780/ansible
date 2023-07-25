@@ -1,0 +1,6 @@
+---
+# vars file for role/sonar
+db_name: sonarqube
+db_user: sonar
+db_password: password
+sonar_port: 9000

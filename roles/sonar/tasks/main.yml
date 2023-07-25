@@ -1,0 +1,80 @@
+- name: pre install
+  apt:
+    name: [wget,unzip,zip,openjdk-11-jdk]
+    update_cache: true
+- name: Add an Apt signing key
+  ansible.builtin.apt_key:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    state: present    
+- name: add postgres repo
+  ansible.builtin.apt_repository:
+    repo: "deb http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main"
+    state: present
+- name: install postgres
+  apt:
+    name: [postgresql,postgresql-contrib]
+    update_cache: true
+- name: "Start and enable posygresql services"
+  service: 
+    name: postgresql
+    state: started
+    enabled: yes
+- name: Create db
+  script: sonar.sh {{ db_user }} {{ db_password }} {{ db_name }}
+- name: Download sonarqube
+  ansible.builtin.get_url:
+    url: https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-7.6.zip
+    dest: /opt/sonarqube.zip
+- name: Unarchive a sonarqube file 
+  ansible.builtin.unarchive:
+    src: /opt/sonarqube.zip
+    dest: /opt
+    remote_src: yes
+- name: add database user to sonarqube conf file
+  ansible.builtin.lineinfile:
+    path: /opt/sonarqube-7.6/conf/sonar.properties
+    search_string: 'sonar.jdbc.username='
+    line: sonar.jdbc.username={{ db_user }}  
+- name: add database password to sonarqube conf file
+  ansible.builtin.lineinfile:
+    path: /opt/sonarqube-7.6/conf/sonar.properties
+    search_string: 'sonar.jdbc.password='
+    line: sonar.jdbc.password={{ db_password }}
+- name: add database url to sonarqube conf file
+  ansible.builtin.lineinfile:
+    path: /opt/sonarqube-7.6/conf/sonar.properties
+    search_string: 'sonar.jdbc.url=jdbc:postgresql'
+    line: sonar.jdbc.url=jdbc:postgresql://localhost:5432/{{ db_name }}
+- name: open web to public access
+  ansible.builtin.lineinfile:
+    path: /opt/sonarqube-7.6/conf/sonar.properties
+    search_string: 'sonar.web.host=0.0.0.0'
+    line: sonar.web.host=0.0.0.0
+- name: port conf
+  ansible.builtin.lineinfile:
+    path: /opt/sonarqube-7.6/conf/sonar.properties
+    search_string: 'sonar.web.port='
+    line: sonar.web.port={{ sonar_port }}      
+- name: Add the user 'sonar' 
+  ansible.builtin.user:
+    name: sonar
+- name: Change files ownership and group 
+  ansible.builtin.file:
+    path: /opt/sonarqube-7.6
+    recurse: true  
+    owner: sonar
+    group: sonar
+- name: Copy sonarqube service file 
+  ansible.builtin.copy:
+    src: sonarqube.service
+    dest: /etc/systemd/system/sonarqube.service
+    owner: root
+    group: root
+- name: "Start and enable sonarqube services"
+  service: 
+    name: sonarqube
+    state: started
+    enabled: yes
+- name: Print the link to sonarqube web page
+  ansible.builtin.debug:
+    msg: the link to sonarqube is  http://{{ ansible_ssh_host }}:{{ sonar_port }}                      
